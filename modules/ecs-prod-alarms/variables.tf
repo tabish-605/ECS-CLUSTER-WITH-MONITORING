@@ -1,11 +1,13 @@
 variable "cluster_name" {
   type        = string
   description = "ECS cluster name"
+  default = "prod-ecs-cluster"
 }
 
 variable "service_name" {
   type        = string
   description = "ECS service name"
+  default = "prod-api-service"
 }
 
 variable "sns_topic_arn" {
