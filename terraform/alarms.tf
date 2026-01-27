@@ -3,7 +3,7 @@ module "ecs_prod_alarms" {
 
   cluster_name  = "prod-ecs-cluster"
   service_name  = "prod-api-service"
-  sns_topic_arn = aws_sns_topic.prod_alerts.arn
+  sns_topic_arn = "arn:aws:sns:us-east-1:588434007010:ecs-alarms"
 
   tags = {
     Environment = "prod"
