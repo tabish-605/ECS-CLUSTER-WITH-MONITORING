@@ -73,9 +73,9 @@ resource "aws_cloudwatch_metric_alarm" "ecs_service_running_tasks_low" {
     }
   }
 
-#   comparison_operator = "LessThanThreshold"
-#   threshold           = 0
-#   evaluation_periods  = 1
+  comparison_operator = "LessThanThreshold"
+  threshold           = 0
+  evaluation_periods  = 1
 
   alarm_description = "ECS service running tasks less than desired"
   alarm_actions     = [var.sns_topic_arn]
