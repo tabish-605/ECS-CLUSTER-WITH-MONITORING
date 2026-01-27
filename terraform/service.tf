@@ -37,8 +37,8 @@ resource "aws_cloudwatch_log_group" "ecs_test" {
 
 
 resource "aws_ecs_service" "test" {
-  name            = "test-nginx-service"
-  cluster         = "prod-ecs-ec2"
+  name            = var.service_name
+  cluster         = module.ecs_ec2.cluster_name
   task_definition = aws_ecs_task_definition.test.arn
   desired_count   = 1
   launch_type     = "EC2"
