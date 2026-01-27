@@ -23,7 +23,7 @@ variable "max_size" {
 }
 
 variable "subnet_ids" {
-  type = list(string)
+  type = string
 }
 
 variable "vpc_id" {
