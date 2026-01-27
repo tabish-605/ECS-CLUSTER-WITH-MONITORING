@@ -2,8 +2,8 @@ module "ecs_ec2" {
   source = "../modules/ecs-ec2"
 
   cluster_name     = "prod-ecs-ec2"
-  vpc_id           = module.vpc.vpc_id
-  subnet_ids       = module.vpc.private_subnets
+  vpc_id           = "vpc-033d3f73769d2bfe1"
+  subnet_ids       = "subnet-0d007597e8d8be217"
   instance_type    = "t2.micro"
   desired_capacity = 2
   min_size         = 1
