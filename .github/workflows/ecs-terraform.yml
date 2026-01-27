@@ -35,7 +35,11 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -input=false
+        run: |
+          terraform init \
+            -backend-config="bucket=terraform-backend-tabish" \
+            -backend-config="key=ecs/prod/terraform.tfstate" \
+            -backend-config="region=us-east-1" 
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
