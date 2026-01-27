@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
-    # bucket         = "terraform-backend-tabish"
-    # key            = "ecs/prod/terraform.tfstate"
-    # region         = "us-esat-1"
+    bucket         = "terraform-backend-tabish"
+    key            = "ecs/prod/terraform.tfstate"
+    region         = "us-east-1"
   }
 }
