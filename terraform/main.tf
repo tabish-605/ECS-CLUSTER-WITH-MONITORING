@@ -5,7 +5,7 @@ module "ecs_ec2" {
   vpc_id           = "vpc-033d3f73769d2bfe1"
   subnet_ids       = ["subnet-0d007597e8d8be217", "subnet-015ed8decd8bdea82"]
   instance_type    = "t2.micro"
-  desired_capacity = 2
+  desired_capacity = 1
   min_size         = 1
   max_size         = 4
 

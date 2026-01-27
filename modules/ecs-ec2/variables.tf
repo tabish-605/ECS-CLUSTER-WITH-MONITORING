@@ -9,7 +9,7 @@ variable "instance_type" {
 
 variable "desired_capacity" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "min_size" {
