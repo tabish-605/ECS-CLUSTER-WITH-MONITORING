@@ -39,11 +39,66 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_reservation_high" {
   tags = var.tags
 }
 
+# resource "aws_cloudwatch_metric_alarm" "ecs_service_running_tasks_low" {
+#   alarm_name          = "${var.service_name}-running-tasks-low"
+#   comparison_operator = "LessThanThreshold"
+#   evaluation_periods  = 1
+#   threshold           = 1
+
+#   metric_query {
+#     id = "running"
+#     metric {
+#       metric_name = "RunningTaskCount"
+#       namespace   = "AWS/ECS"
+#       period      = 60
+#       stat        = "Average"
+#       dimensions = {
+#         ClusterName = var.cluster_name
+#         ServiceName = var.service_name
+#       }
+#     }
+#   }
+
+#   metric_query {
+#     id = "desired"
+#     metric {
+#       metric_name = "DesiredTaskCount"
+#       namespace   = "AWS/ECS"
+#       period      = 60
+#       stat        = "Average"
+#       dimensions = {
+#         ClusterName = var.cluster_name
+#         ServiceName = var.service_name
+#       }
+#     }
+#   }
+
+#   # comparison_operator = "LessThanThreshold"
+#   # threshold           = 0
+#   # evaluation_periods  = 1
+
+#   alarm_description = "ECS service running tasks less than desired"
+#   alarm_actions     = [var.sns_topic_arn]
+
+#   tags = var.tags
+# }
+
 resource "aws_cloudwatch_metric_alarm" "ecs_service_running_tasks_low" {
   alarm_name          = "${var.service_name}-running-tasks-low"
-  comparison_operator = "LessThanThreshold"
+  comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
-  threshold           = 1
+  threshold           = 0
+  treat_missing_data  = "breaching"
+
+  alarm_description = "ECS service running tasks less than desired"
+  alarm_actions     = [var.sns_topic_arn]
+
+  metric_query {
+    id          = "diff"
+    expression  = "desired - running"
+    label       = "Desired minus Running"
+    return_data = true
+  }
 
   metric_query {
     id = "running"
@@ -57,6 +112,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_service_running_tasks_low" {
         ServiceName = var.service_name
       }
     }
+    return_data = false
   }
 
   metric_query {
@@ -71,17 +127,12 @@ resource "aws_cloudwatch_metric_alarm" "ecs_service_running_tasks_low" {
         ServiceName = var.service_name
       }
     }
+    return_data = false
   }
-
-  # comparison_operator = "LessThanThreshold"
-  # threshold           = 0
-  # evaluation_periods  = 1
-
-  alarm_description = "ECS service running tasks less than desired"
-  alarm_actions     = [var.sns_topic_arn]
 
   tags = var.tags
 }
+
 
 resource "aws_cloudwatch_metric_alarm" "ecs_pending_tasks" {
   alarm_name          = "${var.service_name}-pending-tasks"
