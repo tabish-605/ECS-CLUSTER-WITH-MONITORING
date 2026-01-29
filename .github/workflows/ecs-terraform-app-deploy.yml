@@ -28,6 +28,11 @@ env:
   CLUSTER_NAME: prod-ecs-cluster
   SERVICE_NAME: dummy-alarm-test-service
 
+permissions:
+  id-token: write
+  contents: read
+
+
 jobs:
   deploy-and-test:
     runs-on: ubuntu-latest
