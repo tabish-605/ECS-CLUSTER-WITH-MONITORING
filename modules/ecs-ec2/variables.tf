@@ -38,7 +38,7 @@ variable "vpc_id" {
 
 variable "key_name" {
   type    = string
-  default = "key"
+  default = "ecs-key"
 }
 
 variable "tags" {
