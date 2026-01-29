@@ -54,7 +54,7 @@ jobs:
         terraform_version: 1.5.0
 
     - name: Terraform Init
-      working-directory: ./terraform
+      working-directory: Application
       run: |
             terraform init \
             -backend-config="bucket=terraform-backend-tabish" \
@@ -62,7 +62,7 @@ jobs:
             -backend-config="region=us-east-1" 
 
     - name: Terraform Apply
-      working-directory: ./terraform
+      working-directory: Application
       run: terraform apply -auto-approve
       env:
         TF_VAR_desired_count: 2
@@ -172,7 +172,7 @@ jobs:
       uses: hashicorp/setup-terraform@v3
 
     - name: Terraform Init
-      working-directory: ./terraform
+      working-directory: Application
       run: |
             terraform init \
             -backend-config="bucket=terraform-backend-tabish" \
@@ -180,5 +180,5 @@ jobs:
             -backend-config="region=us-east-1" 
 
     - name: Terraform Destroy
-      working-directory: ./terraform
+      working-directory: Application
       run: terraform destroy -auto-approve
