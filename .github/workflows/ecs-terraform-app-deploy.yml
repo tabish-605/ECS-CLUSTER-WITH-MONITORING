@@ -1,0 +1,179 @@
+name: Test ECS Alarms
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - staging
+      tests_to_run:
+        description: 'Tests to execute'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cpu
+          - memory
+          - tasks
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: dummy-alarm-test-app
+  CLUSTER_NAME: prod-ecs-cluster
+  SERVICE_NAME: dummy-alarm-test-service
+
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+
+    - name: Terraform Init
+      working-directory: ./terraform
+      run: |
+            terraform init \
+            -backend-config="bucket=terraform-backend-tabish" \
+            -backend-config="key="ecs-alarm-test/terraform.tfstate" \
+            -backend-config="region=us-east-1" 
+
+    - name: Terraform Apply
+      working-directory: ./terraform
+      run: terraform apply -auto-approve
+      env:
+        TF_VAR_desired_count: 2
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      working-directory: ./app
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Update ECS Service
+      run: |
+        aws ecs update-service \
+          --cluster ${{ env.CLUSTER_NAME }} \
+          --service ${{ env.SERVICE_NAME }} \
+          --force-new-deployment \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Wait for service stabilization
+      run: sleep 300
+
+    - name: Get Service Endpoint
+      id: get-endpoint
+      run: |
+        # Get ALB DNS name (simplified - you may need to adjust based on your setup)
+        ENDPOINT=$(aws elbv2 describe-load-balancers \
+          --region ${{ env.AWS_REGION }} \
+          --names dummy-alarm-test-alb \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text)
+        echo "ENDPOINT=http://$ENDPOINT:8080"
+        echo "endpoint=http://$ENDPOINT:8080" >> $GITHUB_OUTPUT
+
+    - name: Run Alarm Tests
+      run: |
+        python3 scripts/test_alarms.py \
+          --cluster ${{ env.CLUSTER_NAME }} \
+          --service ${{ env.SERVICE_NAME }} \
+          --endpoint ${{ steps.get-endpoint.outputs.endpoint }} \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Capture CloudWatch Alarm States
+      run: |
+        # Get current state of all alarms
+        aws cloudwatch describe-alarms \
+          --region ${{ env.AWS_REGION }} \
+          --alarm-name-prefix "prod-" \
+          --query 'MetricAlarms[*].[AlarmName,StateValue,StateReason]' \
+          --output table > alarm-states.txt
+        
+        # Upload as artifact
+        echo "ALARM_STATES<<EOF" >> $GITHUB_ENV
+        cat alarm-states.txt >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: alarm-test-results
+        path: |
+          alarm-states.txt
+          scripts/test_alarms.py
+
+    - name: Cleanup - Scale Down
+      if: always()
+      run: |
+        aws ecs update-service \
+          --cluster ${{ env.CLUSTER_NAME }} \
+          --service ${{ env.SERVICE_NAME }} \
+          --desired-count 1 \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Send Test Notification
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#alerts'
+        text: 'ECS Alarm Tests completed with status: ${{ job.status }}'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  destroy-resources:
+    runs-on: ubuntu-latest
+    needs: deploy-and-test
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init
+      working-directory: ./terraform
+      run: |
+            terraform init \
+            -backend-config="bucket=terraform-backend-tabish" \
+            -backend-config="key=ecs-alarm-test/terraform.tfstate" \
+            -backend-config="region=us-east-1" 
+
+    - name: Terraform Destroy
+      working-directory: ./terraform
+      run: terraform destroy -auto-approve
